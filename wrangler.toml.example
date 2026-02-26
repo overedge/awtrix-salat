@@ -1,0 +1,20 @@
+name = "awtrix-salat"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+# ── Cron : toutes les minutes ──
+[triggers]
+crons = ["* * * * *"]
+
+# ── Variables publiques ──
+[vars]
+AWTRIX_BASE_URL = "http://TON_IP_OU_DNS:4242"
+MAWAQIT_SLUG    = "slug-de-ta-mosquee"
+
+# ── KV : cache des horaires (évite un fetch mawaqit par minute) ──
+[[kv_namespaces]]
+binding = "KV"
+id      = "TON_KV_NAMESPACE_ID"   # npx wrangler kv namespace create "KV"
+
+# ── Variables secrètes (à définir via CLI) ──
+# npx wrangler secret put AWTRIX_BASIC_AUTH
