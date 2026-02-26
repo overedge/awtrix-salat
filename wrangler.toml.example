@@ -11,6 +11,11 @@ crons = ["* * * * *"]
 AWTRIX_BASE_URL = "http://TON_IP_OU_DNS:4242"
 MAWAQIT_SLUG    = "slug-de-ta-mosquee"
 
+# ── Comportement de la notification adhān ──
+# "true"  → reste affiché jusqu'à appui sur le bouton
+# nombre  → disparaît automatiquement après N secondes (ex: "120" = 2 min)
+ADHAN_HOLD      = "true"
+
 # ── KV : cache des horaires (évite un fetch mawaqit par minute) ──
 [[kv_namespaces]]
 binding = "KV"

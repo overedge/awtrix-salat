@@ -193,15 +193,20 @@ async function handle(env) {
   let adhanTriggered = false;
   if (diffMin <= 1 && diffMin >= 0) {
     adhanTriggered = true;
-    await awtrixSend(env, "/api/notify", {
+    const holdVal = env.ADHAN_HOLD ?? "true";
+    const adhanPayload = {
       text: `ADHAN ${nextPrayer.name}`,
       icon: nextPrayer.icon,
       color: "#FFFFFF",
       rtttl: ADHAN_RTTTL,
       repeat: 3,
-      hold: true,
-      duration: 30,
-    });
+    };
+    if (holdVal === "true") {
+      adhanPayload.hold = true;
+    } else {
+      adhanPayload.duration = parseInt(holdVal, 10);
+    }
+    await awtrixSend(env, "/api/notify", adhanPayload);
   }
 
   const log = {
