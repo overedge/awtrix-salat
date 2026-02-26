@@ -189,9 +189,9 @@ async function handle(env) {
     lifetime: 120,
   });
 
-  // ── 7. Notification adhān si c'est l'heure (±1 min) ──
+  // ── 7. Notification adhān uniquement à l'heure pile ──
   let adhanTriggered = false;
-  if (diffMin <= 1 && diffMin >= 0) {
+  if (diffMin === 0) {
     adhanTriggered = true;
     const holdVal = env.ADHAN_HOLD ?? "true";
     const adhanPayload = {
@@ -199,7 +199,6 @@ async function handle(env) {
       icon: nextPrayer.icon,
       color: "#FFFFFF",
       rtttl: ADHAN_RTTTL,
-      repeat: 3,
     };
     if (holdVal === "true") {
       adhanPayload.hold = true;
