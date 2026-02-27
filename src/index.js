@@ -77,7 +77,7 @@ async function awtrixSend(env, endpoint, payload) {
   return res.ok;
 }
 
-// ── Récupère les horaires depuis mawaqit.net, avec cache KV jusqu'à minuit ──
+// ── Récupère les horaires depuis mawaqit.net, avec cache KV jusqu'à 3h du matin ──
 async function fetchMawaqit(slug, kv) {
   const today = new Date().toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" });
   const cacheKey = `mawaqit:${slug}:${today}`;
@@ -104,11 +104,12 @@ async function fetchMawaqit(slug, kv) {
   const conf = JSON.parse(match[1]);
   if (!conf.times || conf.times.length < 5) throw new Error("times manquant dans confData");
 
-  // Calcule les secondes restantes jusqu'à minuit Paris
+  // Calcule les secondes restantes jusqu'à 3h du matin Paris
   const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" }));
-  const midnight = new Date(now);
-  midnight.setHours(24, 0, 0, 0);
-  const ttl = Math.floor((midnight - now) / 1000);
+  const threeAm = new Date(now);
+  threeAm.setHours(3, 0, 0, 0);
+  if (threeAm <= now) threeAm.setDate(threeAm.getDate() + 1);
+  const ttl = Math.floor((threeAm - now) / 1000);
 
   // Stocke en KV jusqu'à minuit
   if (kv) await kv.put(cacheKey, JSON.stringify(conf.times), { expirationTtl: ttl });
