@@ -191,9 +191,10 @@ async function handle(env) {
     lifetime: 120,
   });
 
-  // ── 7. Notification adhān uniquement à l'heure pile ──
+  // ── 7. Notification adhān — déclenche quand heure:minute == heure de prière ──
+  const [pH, pM] = nextPrayer.time.split(":").map(Number);
   let adhanTriggered = false;
-  if (diffMin === 0) {
+  if (now.getHours() === pH && now.getMinutes() === pM) {
     adhanTriggered = true;
     const holdVal = env.ADHAN_HOLD ?? "true";
     const adhanPayload = {
