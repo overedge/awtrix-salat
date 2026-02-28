@@ -77,16 +77,21 @@ async function awtrixSend(env, endpoint, payload) {
   return res.ok;
 }
 
-// ── Récupère les horaires depuis mawaqit.net, avec cache KV jusqu'à 3h du matin ──
+// ── Récupère les horaires depuis mawaqit.net, cache KV renouvelé 5x/jour ──
 async function fetchMawaqit(slug, kv) {
-  const today = new Date().toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" });
-  const cacheKey = `mawaqit:${slug}:${today}`;
+  // Journée découpée en 5 slots de ~4h48 (288 min)
+  // Slot 0: 00h00–04h47 | 1: 04h48–09h35 | 2: 09h36–14h23 | 3: 14h24–19h11 | 4: 19h12–23h59
+  const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+  const minuteOfDay = now.getHours() * 60 + now.getMinutes();
+  const slot = Math.floor(minuteOfDay / 288);
+  const today = now.toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" });
+  const cacheKey = `mawaqit:${slug}:${today}:slot${slot}`;
 
   // Vérifie le cache
   if (kv) {
     const cached = await kv.get(cacheKey);
     if (cached) {
-      console.log("[Cache] horaires depuis KV");
+      console.log(`[Cache] horaires depuis KV (slot ${slot})`);
       return JSON.parse(cached);
     }
   }
@@ -104,16 +109,12 @@ async function fetchMawaqit(slug, kv) {
   const conf = JSON.parse(match[1]);
   if (!conf.times || conf.times.length < 5) throw new Error("times manquant dans confData");
 
-  // Calcule les secondes restantes jusqu'à 3h du matin Paris
-  const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" }));
-  const threeAm = new Date(now);
-  threeAm.setHours(3, 0, 0, 0);
-  if (threeAm <= now) threeAm.setDate(threeAm.getDate() + 1);
-  const ttl = Math.floor((threeAm - now) / 1000);
+  // TTL = secondes restantes jusqu'à la fin du slot actuel
+  const nextSlotMinute = (slot + 1) * 288;
+  const ttl = (nextSlotMinute - minuteOfDay) * 60 - now.getSeconds();
 
-  // Stocke en KV jusqu'à minuit
-  if (kv) await kv.put(cacheKey, JSON.stringify(conf.times), { expirationTtl: ttl });
-  console.log(`[Cache] horaires fetchés depuis mawaqit, TTL ${ttl}s`);
+  if (kv) await kv.put(cacheKey, JSON.stringify(conf.times), { expirationTtl: Math.max(ttl, 60) });
+  console.log(`[Cache] horaires fetchés depuis mawaqit (slot ${slot}), TTL ${ttl}s`);
 
   return conf.times;
 }
