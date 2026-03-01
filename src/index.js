@@ -191,15 +191,18 @@ async function handle(env) {
     lifetime: 120,
   });
 
-  // ── 7. Notification adhān — déclenche quand heure:minute == heure de prière ──
-  const [pH, pM] = nextPrayer.time.split(":").map(Number);
+  // ── 7. Notification adhān — cherche parmi toutes les prières ──
+  const currentPrayer = prayers.find(p => {
+    const [h, m] = p.time.split(":").map(Number);
+    return now.getHours() === h && now.getMinutes() === m;
+  });
   let adhanTriggered = false;
-  if (now.getHours() === pH && now.getMinutes() === pM) {
+  if (currentPrayer) {
     adhanTriggered = true;
     const holdVal = env.ADHAN_HOLD ?? "true";
     const adhanPayload = {
-      text: `ADHAN ${nextPrayer.name}`,
-      icon: nextPrayer.icon,
+      text: `ADHAN ${currentPrayer.name}`,
+      icon: currentPrayer.icon,
       color: "#FFFFFF",
       rtttl: ADHAN_RTTTL,
     };
