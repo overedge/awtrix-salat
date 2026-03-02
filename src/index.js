@@ -77,21 +77,18 @@ async function awtrixSend(env, endpoint, payload) {
   return res.ok;
 }
 
-// ── Récupère les horaires depuis mawaqit.net, cache KV renouvelé 5x/jour ──
+// ── Récupère les horaires depuis mawaqit.net, cache KV renouvelé toutes les heures ──
 async function fetchMawaqit(slug, kv) {
-  // Journée découpée en 5 slots de ~4h48 (288 min)
-  // Slot 0: 00h00–04h47 | 1: 04h48–09h35 | 2: 09h36–14h23 | 3: 14h24–19h11 | 4: 19h12–23h59
   const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" }));
-  const minuteOfDay = now.getHours() * 60 + now.getMinutes();
-  const slot = Math.floor(minuteOfDay / 288);
   const today = now.toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" });
-  const cacheKey = `mawaqit:${slug}:${today}:slot${slot}`;
+  const hour = now.getHours();
+  const cacheKey = `mawaqit:${slug}:${today}:h${hour}`;
 
   // Vérifie le cache
   if (kv) {
     const cached = await kv.get(cacheKey);
     if (cached) {
-      console.log(`[Cache] horaires depuis KV (slot ${slot})`);
+      console.log(`[Cache] horaires depuis KV (h${hour})`);
       return JSON.parse(cached);
     }
   }
@@ -109,9 +106,8 @@ async function fetchMawaqit(slug, kv) {
   const conf = JSON.parse(match[1]);
   if (!conf.times || conf.times.length < 5) throw new Error("times manquant dans confData");
 
-  // TTL = secondes restantes jusqu'à la fin du slot actuel
-  const nextSlotMinute = (slot + 1) * 288;
-  const ttl = (nextSlotMinute - minuteOfDay) * 60 - now.getSeconds();
+  // TTL = secondes restantes jusqu'à la fin de l'heure courante
+  const ttl = (60 - now.getMinutes()) * 60 - now.getSeconds();
 
   if (kv) await kv.put(cacheKey, JSON.stringify(conf.times), { expirationTtl: Math.max(ttl, 60) });
   console.log(`[Cache] horaires fetchés depuis mawaqit (slot ${slot}), TTL ${ttl}s`);
