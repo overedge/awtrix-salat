@@ -88,8 +88,12 @@ async function fetchMawaqit(slug, kv) {
   if (kv) {
     const cached = await kv.get(cacheKey);
     if (cached) {
-      console.log(`[Cache] horaires depuis KV (h${hour})`);
-      return JSON.parse(cached);
+      const parsed = JSON.parse(cached);
+      // Vérifie que le cache est au bon format {adhan, iqama}
+      if (parsed && parsed.iqama) {
+        console.log(`[Cache] horaires depuis KV (h${hour})`);
+        return parsed;
+      }
     }
   }
 
@@ -106,13 +110,23 @@ async function fetchMawaqit(slug, kv) {
   const conf = JSON.parse(match[1]);
   if (!conf.times || conf.times.length < 5) throw new Error("times manquant dans confData");
 
+  // calendar[moisIndex]["jour"] = [Fajr, Sunrise, Dhuhr, Asr, Maghrib, Isha]
+  // On prend les indices [0, 2, 3, 4, 5] pour [Fajr, Dhuhr, Asr, Maghrib, Isha]
+  const monthIndex = now.getMonth();
+  const dayKey = String(now.getDate());
+  const dayTimes = conf.calendar?.[monthIndex]?.[dayKey];
+  const iqamaTimes = dayTimes
+    ? [dayTimes[0], dayTimes[2], dayTimes[3], dayTimes[4], dayTimes[5]]
+    : conf.times;
+
+  const result = { adhan: conf.times, iqama: iqamaTimes };
+
   // TTL = secondes restantes jusqu'à la fin de l'heure courante
   const ttl = (60 - now.getMinutes()) * 60 - now.getSeconds();
+  if (kv) await kv.put(cacheKey, JSON.stringify(result), { expirationTtl: Math.max(ttl, 60) });
+  console.log(`[Cache] horaires fetchés depuis mawaqit (h${hour}), TTL ${ttl}s`);
 
-  if (kv) await kv.put(cacheKey, JSON.stringify(conf.times), { expirationTtl: Math.max(ttl, 60) });
-  console.log(`[Cache] horaires fetchés depuis mawaqit (slot ${slot}), TTL ${ttl}s`);
-
-  return conf.times;
+  return result;
 }
 
 async function handle(env) {
@@ -122,11 +136,11 @@ async function handle(env) {
   const slug = env.MAWAQIT_SLUG || "ennour";
 
   // ── 1. Récupérer les horaires depuis mawaqit (avec cache KV) ──
-  const times = await fetchMawaqit(slug, env.KV);
+  const { iqama } = await fetchMawaqit(slug, env.KV);
   const prayerNames = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
   const prayers = prayerNames.map((name, i) => ({
     name,
-    time: times[i],
+    time: iqama[i],
     color: COLORS[name],
     icon: ICONS[name],
   }));
