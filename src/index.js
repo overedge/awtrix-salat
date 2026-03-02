@@ -139,6 +139,7 @@ async function handle(env) {
   const now = new Date(
     new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" })
   );
+  const today = now.toLocaleDateString("fr-FR");
 
   // ── 3. Prochaine prière ──
   let nextPrayer = null;
@@ -191,27 +192,38 @@ async function handle(env) {
     lifetime: 120,
   });
 
-  // ── 7. Notification adhān — cherche parmi toutes les prières ──
+  // ── 7. Notification adhān ──
+  // Fenêtre de 5 min pour absorber les retards Cloudflare.
+  // KV empêche de sonner deux fois la même prière le même jour.
+  const ADHAN_WINDOW_MS = 5 * 60 * 1000;
   const currentPrayer = prayers.find(p => {
     const [h, m] = p.time.split(":").map(Number);
-    return now.getHours() === h && now.getMinutes() === m;
+    const pDate = new Date(now);
+    pDate.setHours(h, m, 0, 0);
+    const diff = now - pDate;
+    return diff >= 0 && diff < ADHAN_WINDOW_MS;
   });
   let adhanTriggered = false;
   if (currentPrayer) {
-    adhanTriggered = true;
-    const holdVal = env.ADHAN_HOLD ?? "true";
-    const adhanPayload = {
-      text: `ADHAN ${currentPrayer.name}`,
-      icon: currentPrayer.icon,
-      color: "#FFFFFF",
-      rtttl: ADHAN_RTTTL,
-    };
-    if (holdVal === "true") {
-      adhanPayload.hold = true;
-    } else {
-      adhanPayload.duration = parseInt(holdVal, 10);
+    const adhanKey = `adhan:${slug}:${today}:${currentPrayer.name}`;
+    const alreadyDone = env.KV ? await env.KV.get(adhanKey) : null;
+    if (!alreadyDone) {
+      adhanTriggered = true;
+      if (env.KV) await env.KV.put(adhanKey, "1", { expirationTtl: 86400 });
+      const holdVal = env.ADHAN_HOLD ?? "true";
+      const adhanPayload = {
+        text: `ADHAN ${currentPrayer.name}`,
+        icon: currentPrayer.icon,
+        color: "#FFFFFF",
+        rtttl: ADHAN_RTTTL,
+      };
+      if (holdVal === "true") {
+        adhanPayload.hold = true;
+      } else {
+        adhanPayload.duration = parseInt(holdVal, 10);
+      }
+      await awtrixSend(env, "/api/notify", adhanPayload);
     }
-    await awtrixSend(env, "/api/notify", adhanPayload);
   }
 
   const log = {
