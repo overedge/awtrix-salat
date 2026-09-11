@@ -57,12 +57,13 @@ Parce que les horaires viennent **directement de ta mosquée**. Si l'imam ajuste
 ### 1. Ce qu'il te faut
 - Une [Awtrix 3](https://blueforcer.github.io/awtrix3/) (ESP32 + matrice 32×8)
 - Un compte [Cloudflare](https://cloudflare.com) (gratuit)
-- Node.js 20+
+- Node.js 20+ (un `.nvmrc` est fourni : `nvm use` dans le dossier)
 
 ### 2. Clone & install
 ```bash
 git clone https://github.com/overedge/awtrix-salat
 cd awtrix-salat
+nvm use        # lit .nvmrc → Node 22
 npm install
 ```
 
