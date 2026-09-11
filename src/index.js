@@ -2,7 +2,7 @@
 // Cloudflare Worker — Awtrix 3 Salat
 // ========================================
 // Variables d'environnement :
-//   AWTRIX_BASE_URL    → http://r2d5.freeboxos.fr:4242
+//   AWTRIX_BASE_URL    → http://ta-box.freeboxos.fr:4242
 //   AWTRIX_BASIC_AUTH  → base64(user:pass)
 //   MAWAQIT_SLUG       → slug de la mosquée sur mawaqit.net
 // ========================================
